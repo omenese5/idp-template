@@ -50,7 +50,7 @@ pipeline {
         stage('3. Despliegue') {
             steps {
                 script {
-                    echo "Desplegando aplicación"
+                    echo "Desplegando aplicación..."
                     
                     withEnv([
                         "APP_IMAGE=${APP_NAME}:${env.BUILD_NUMBER}",
@@ -62,12 +62,18 @@ pipeline {
                         "DB_PASS=donlito123"
                     ]) {
                         dir('tooling/templates') {
-                            sh "docker compose -f compose-deploy.yml down || true"
-                            sh "docker compose -f compose-deploy.yml up -d"
+                            echo "Configurando Docker Compose Standalone..."
+                    
+                            sh "curl -SL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-x86_64 -o docker-compose"
+                            sh "chmod +x docker-compose"
+
+                            echo "Ejecutando despliegue..."
+                            sh "./docker-compose -f compose-deploy.yml down || true"
+                            sh "./docker-compose -f compose-deploy.yml up -d"
                         }
                     }
                     
-                    echo "App desplegada y conectada a ${env.DB_HOST}."
+                    echo "App desplegada correctamente."
                 }
             }
         }
