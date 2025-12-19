@@ -61,7 +61,7 @@ pipeline {
                         "DB_USER=postgres",
                         "DB_PASS=donlito123"
                     ]) {
-                        dir('tooling/templates') {
+                        dir('templates') {
                             echo "Configurando Docker Compose Standalone..."
                     
                             sh "curl -SL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-x86_64 -o docker-compose"
