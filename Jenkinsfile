@@ -68,8 +68,8 @@ pipeline {
                             sh "chmod +x docker-compose"
 
                             echo "Ejecutando despliegue..."
-                            sh "./docker-compose -f compose-deploy.yml down || true"
-                            sh "./docker-compose -f compose-deploy.yml up -d"
+                            sh "./docker-compose -f docker-compose.yml down || true"
+                            sh "./docker-compose -f docker-compose.yml up -d"
                         }
                     }
                     
