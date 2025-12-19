@@ -2,14 +2,19 @@ version: '3.8'
 
 services:
   app-backend:
-    image: ${APP_IMAGE} 
-    container_name: zalgodyne-app-${ENVIRONMENT}
+    image: ${APP_IMAGE}
+    container_name: idp-app-${APP_NAME}-${ENVIRONMENT}
     restart: always
     ports:
       - "${APP_PORT}:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASS}
+      SERVER_PORT: 8081
     networks:
-      - zalgodyne-net
+      - idp-shared-network
 
 networks:
-  zalgodyne-net:
-    driver: bridge
+  idp-shared-network:
+    external: true

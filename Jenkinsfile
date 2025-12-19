@@ -47,24 +47,27 @@ pipeline {
             }
         }
 
-        stage('3. Despliegue (Deploy)') {
+        stage('3. Despliegue') {
             steps {
                 script {
-                    echo "Desplegando con Docker Compose..."
+                    echo "Desplegando aplicación"
                     
                     withEnv([
                         "APP_IMAGE=${APP_NAME}:${env.BUILD_NUMBER}",
-                        "APP_PORT=3005",
-                        "ENVIRONMENT=demo"
+                        "APP_PORT=8085",
+                        "ENVIRONMENT=prod",
+                        "DB_HOST=postgres_db", 
+                        "DB_NAME=mirai_db",
+                        "DB_USER=postgres",
+                        "DB_PASS=donlito123"
                     ]) {
                         dir('tooling/templates') {
-                            echo "Usando plantilla: compose-deploy.yml"
-                            
                             sh "docker compose -f compose-deploy.yml down || true"
                             sh "docker compose -f compose-deploy.yml up -d"
                         }
                     }
-                    echo "Servicio desplegado en puerto 3005."
+                    
+                    echo "App desplegada y conectada a ${env.DB_HOST}."
                 }
             }
         }
