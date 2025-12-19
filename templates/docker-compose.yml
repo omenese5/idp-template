@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  app-backend:
+    image: ${APP_IMAGE} 
+    container_name: zalgodyne-app-${ENVIRONMENT}
+    restart: always
+    ports:
+      - "${APP_PORT}:8081"
+    networks:
+      - zalgodyne-net
+
+networks:
+  zalgodyne-net:
+    driver: bridge
