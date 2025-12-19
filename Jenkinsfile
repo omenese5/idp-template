@@ -64,7 +64,7 @@ pipeline {
                         dir('tooling/templates') {
                             echo "Configurando Docker Compose Standalone..."
                     
-                            sh "curl -SL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-x86_64 -o docker-compose"
+                            sh "curl -SL https://github.com/docker/compose/releases/download/v2.29.1/docker-compose-linux-x86_64 -o docker-compose"
                             sh "chmod +x docker-compose"
 
                             echo "Ejecutando despliegue..."
