@@ -4,7 +4,7 @@ pipeline {
     parameters {
         string(name: 'REPO_URL', defaultValue: '', description: 'URL del repositorio Cliente')
         string(name: 'BRANCH', defaultValue: 'main', description: 'Rama a desplegar')
-        string(name: 'LANGUAGE', defaultValue: 'node', description: 'Lenguaje')
+        string(name: 'LANGUAGE', defaultValue: 'java', description: 'Lenguaje (java/node)')
         string(name: 'EMAIL_TO', defaultValue: '', description: 'Email')
     }
 
@@ -33,16 +33,19 @@ pipeline {
             }
         }
 
-        stage('2. Construcción (Build)') {
+        stage('2. Construcción (Build Real)') {
             steps {
                 script {
-                    echo "Construyendo imagen Docker para: ${params.LANGUAGE}"
+                    echo "Preparando construcción para: ${params.LANGUAGE}"
+
+                    sh "cp tooling/docker/${params.LANGUAGE}/Dockerfile app/Dockerfile"
 
                     dir('app') {
-                        echo "Docker Build (Simulado)..."
-                        sleep 2
+                        echo "Iniciando Docker Build (Esto puede tardar la primera vez)..."
+                        
+                        sh "docker build --network host -t ${APP_NAME}:${env.BUILD_NUMBER} ."
                     }
-                    echo "Imagen construida."
+                    echo "Imagen ${APP_NAME}:${env.BUILD_NUMBER} construida exitosamente."
                 }
             }
         }
@@ -87,7 +90,7 @@ pipeline {
                             to: "${params.EMAIL_TO}",
                             subject: "Despliegue IDP Exitoso #${env.BUILD_NUMBER}",
                             mimeType: 'text/html',
-                            body: "<h1>Zalgodyne IDP</h1><p>El proyecto <b>${params.REPO_URL}</b> está activo.</p>"
+                            body: "<h1>IDP Platform</h1><p>El proyecto <b>${params.REPO_URL}</b> está activo y construido.</p>"
                         )
                     } catch (e) {
                         echo "Notificación simulada (SMTP no configurado)."
