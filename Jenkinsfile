@@ -47,11 +47,11 @@ pipeline {
         stage('3. Despliegue') {
             steps {
                 script {
-                    echo "Desplegando ${env.APP_NAME} en puerto ${params.HOST_PORT}..."
+                    echo "Desplegando aplicación ${env.APP_NAME} en puerto ${params.HOST_PORT}..."
                     
                     withEnv([
                         "APP_IMAGE=${env.APP_NAME}:${env.BUILD_NUMBER}",
-                        "APP_PORT=${params.HOST_PORT}",
+                        "APP_PORT=${params.HOST_PORT}", 
                         "ENVIRONMENT=${params.BRANCH}",
                         "DB_HOST=postgres_db", 
                         "DB_NAME=mirai_db",
@@ -59,8 +59,13 @@ pipeline {
                         "DB_PASS=donlito123"
                     ]) {
                         dir('tooling/templates') {
-                            sh "chmod +x docker-compose"
+                            echo "Configurando Docker Compose..."
                             
+                            sh "curl -SL https://github.com/docker/compose/releases/download/v2.29.1/docker-compose-linux-x86_64 -o docker-compose"
+                            
+                            sh "chmod +x docker-compose"
+
+                            echo "--- LIMPIEZA DE PUERTOS ---"
                             sh """
                                 CONFLICT_ID=\$(docker ps -q --filter publish=${params.HOST_PORT})
                                 if [ ! -z "\$CONFLICT_ID" ]; then
@@ -71,10 +76,13 @@ pipeline {
                                 fi
                             """
 
+                            echo "Ejecutando despliegue..."
                             sh "./docker-compose -p ${env.APP_NAME} -f docker-compose.yml down || true"
                             sh "./docker-compose -p ${env.APP_NAME} -f docker-compose.yml up -d"
                         }
                     }
+                    
+                    echo "App desplegada correctamente."
                 }
             }
         }
