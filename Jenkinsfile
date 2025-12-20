@@ -5,7 +5,9 @@ pipeline {
         string(name: 'REPO_URL', defaultValue: '', description: 'URL del repositorio Cliente')
         string(name: 'BRANCH', defaultValue: 'main', description: 'Rama a desplegar')
         string(name: 'LANGUAGE', defaultValue: 'java', description: 'Lenguaje (java/node)')
-        string(name: 'EMAIL_TO', defaultValue: '', description: 'Email')
+        string(name: 'EMAIL_TO', defaultValue: '', description: 'Email de notificación')
+        
+        string(name: 'HOST_PORT', defaultValue: '8085', description: 'Puerto externo del servidor')
     }
 
     environment {
@@ -16,45 +18,28 @@ pipeline {
         stage('1. Preparar Workspace') {
             steps {
                 script {
-                    echo "--- Configurando variables dinámicas ---"
-                    
                     def urlParts = params.REPO_URL.tokenize('/')
                     def repoName = urlParts.last().replace('.git', '').toLowerCase()
-                    
                     env.APP_NAME = repoName
                     
-                    echo "Nombre de la App calculado: ${env.APP_NAME}"
-                    echo "Ambiente seleccionado: ${params.BRANCH}"
-
-                    echo "Limpiando espacio de trabajo..."
-                    cleanWs()
+                    echo "--- Resumen del Despliegue ---"
+                    echo "App: ${env.APP_NAME}"
+                    echo "Puerto: ${params.HOST_PORT}"
                     
-                    echo "Descargando aplicación del cliente..."
-                    dir('app') {
-                        git branch: params.BRANCH, url: params.REPO_URL
-                    }
-
-                    echo "Descargando herramientas de plataforma..."
-                    dir('tooling') {
-                        git branch: 'main', url: env.TEMPLATES_REPO
-                    }
+                    cleanWs()
+                    dir('app') { git branch: params.BRANCH, url: params.REPO_URL }
+                    dir('tooling') { git branch: 'main', url: env.TEMPLATES_REPO }
                 }
             }
         }
 
-        stage('2. Construcción (Build Real)') {
+        stage('2. Construcción') {
             steps {
                 script {
-                    echo "Preparando construcción para: ${params.LANGUAGE} - App: ${env.APP_NAME}"
-
                     sh "cp tooling/docker/${params.LANGUAGE}/Dockerfile app/Dockerfile"
-
                     dir('app') {
-                        echo "Iniciando Docker Build..."
-
                         sh "docker build --network host -t ${env.APP_NAME}:${env.BUILD_NUMBER} ."
                     }
-                    echo "Imagen ${env.APP_NAME}:${env.BUILD_NUMBER} construida exitosamente."
                 }
             }
         }
@@ -62,11 +47,11 @@ pipeline {
         stage('3. Despliegue') {
             steps {
                 script {
-                    echo "Desplegando aplicación ${env.APP_NAME} en ambiente ${params.BRANCH}..."
+                    echo "Desplegando ${env.APP_NAME} en puerto ${params.HOST_PORT}..."
                     
                     withEnv([
                         "APP_IMAGE=${env.APP_NAME}:${env.BUILD_NUMBER}",
-                        "APP_PORT=8085",
+                        "APP_PORT=${params.HOST_PORT}",
                         "ENVIRONMENT=${params.BRANCH}",
                         "DB_HOST=postgres_db", 
                         "DB_NAME=mirai_db",
@@ -74,19 +59,22 @@ pipeline {
                         "DB_PASS=donlito123"
                     ]) {
                         dir('tooling/templates') {
-                            echo "Configurando Docker Compose Standalone..."
-                    
-                            sh "curl -SL https://github.com/docker/compose/releases/download/v2.29.1/docker-compose-linux-x86_64 -o docker-compose"
                             sh "chmod +x docker-compose"
-
-                            echo "Ejecutando despliegue..."
                             
+                            sh """
+                                CONFLICT_ID=\$(docker ps -q --filter publish=${params.HOST_PORT})
+                                if [ ! -z "\$CONFLICT_ID" ]; then
+                                    echo "El puerto ${params.HOST_PORT} está ocupado por \$CONFLICT_ID. Liberando..."
+                                    docker rm -f \$CONFLICT_ID
+                                else
+                                    echo "Puerto ${params.HOST_PORT} libre."
+                                fi
+                            """
+
                             sh "./docker-compose -p ${env.APP_NAME} -f docker-compose.yml down || true"
                             sh "./docker-compose -p ${env.APP_NAME} -f docker-compose.yml up -d"
                         }
                     }
-                    
-                    echo "App desplegada correctamente."
                 }
             }
         }
