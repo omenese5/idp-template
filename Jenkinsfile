@@ -87,28 +87,25 @@ pipeline {
             }
         }
 
-        stage('4. Notificación') {
+        stage('4. Verificación (Health Check)') {
             steps {
                 script {
-                    echo "Notificando a: ${params.EMAIL_TO}"
-                    try {
-                        mail(
-                            to: "${params.EMAIL_TO}",
-                            subject: "Despliegue Exitoso: ${env.APP_NAME} #${env.BUILD_NUMBER}",
-                            mimeType: 'text/html',
-                            body: """
-                                <h1>Zalgodyne IDP</h1>
-                                <p>El proyecto <b>${env.APP_NAME}</b> se ha desplegado correctamente.</p>
-                                <ul>
-                                    <li><b>Repositorio:</b> ${params.REPO_URL}</li>
-                                    <li><b>Ambiente/Rama:</b> ${params.BRANCH}</li>
-                                    <li><b>Build ID:</b> #${env.BUILD_NUMBER}</li>
-                                </ul>
-                            """
-                        )
-                    } catch (e) {
-                        echo "Notificación simulada (SMTP no configurado)."
-                    }
+                    echo "Iniciando Health Check en puerto ${params.HOST_PORT}..."
+                    
+                    sleep 15 
+
+                    echo "Probando conectividad HTTP..."
+                    
+                    sh """
+                        curl --fail \
+                             --retry 5 \
+                             --retry-connrefused \
+                             --retry-delay 5 \
+                             --max-time 10 \
+                             http://localhost:${params.HOST_PORT}/
+                    """
+                    
+                    echo "La aplicación está viva y respondiendo."
                 }
             }
         }
