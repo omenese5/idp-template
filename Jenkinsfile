@@ -9,7 +9,6 @@ pipeline {
     }
 
     environment {
-        APP_NAME = "idp-app"
         TEMPLATES_REPO = "https://github.com/omenese5/idp-template.git"
     }
 
@@ -17,6 +16,16 @@ pipeline {
         stage('1. Preparar Workspace') {
             steps {
                 script {
+                    echo "--- Configurando variables dinámicas ---"
+                    
+                    def urlParts = params.REPO_URL.tokenize('/')
+                    def repoName = urlParts.last().replace('.git', '').toLowerCase()
+                    
+                    env.APP_NAME = repoName
+                    
+                    echo "Nombre de la App calculado: ${env.APP_NAME}"
+                    echo "Ambiente seleccionado: ${params.BRANCH}"
+
                     echo "Limpiando espacio de trabajo..."
                     cleanWs()
                     
@@ -36,16 +45,16 @@ pipeline {
         stage('2. Construcción (Build Real)') {
             steps {
                 script {
-                    echo "Preparando construcción para: ${params.LANGUAGE}"
+                    echo "Preparando construcción para: ${params.LANGUAGE} - App: ${env.APP_NAME}"
 
                     sh "cp tooling/docker/${params.LANGUAGE}/Dockerfile app/Dockerfile"
 
                     dir('app') {
-                        echo "Iniciando Docker Build (Esto puede tardar la primera vez)..."
-                        
-                        sh "docker build --network host -t ${APP_NAME}:${env.BUILD_NUMBER} ."
+                        echo "Iniciando Docker Build..."
+
+                        sh "docker build --network host -t ${env.APP_NAME}:${env.BUILD_NUMBER} ."
                     }
-                    echo "Imagen ${APP_NAME}:${env.BUILD_NUMBER} construida exitosamente."
+                    echo "Imagen ${env.APP_NAME}:${env.BUILD_NUMBER} construida exitosamente."
                 }
             }
         }
@@ -53,12 +62,12 @@ pipeline {
         stage('3. Despliegue') {
             steps {
                 script {
-                    echo "Desplegando aplicación..."
+                    echo "Desplegando aplicación ${env.APP_NAME} en ambiente ${params.BRANCH}..."
                     
                     withEnv([
-                        "APP_IMAGE=${APP_NAME}:${env.BUILD_NUMBER}",
+                        "APP_IMAGE=${env.APP_NAME}:${env.BUILD_NUMBER}",
                         "APP_PORT=8085",
-                        "ENVIRONMENT=prod",
+                        "ENVIRONMENT=${params.BRANCH}",
                         "DB_HOST=postgres_db", 
                         "DB_NAME=mirai_db",
                         "DB_USER=postgres",
@@ -71,8 +80,9 @@ pipeline {
                             sh "chmod +x docker-compose"
 
                             echo "Ejecutando despliegue..."
-                            sh "./docker-compose -f docker-compose.yml down || true"
-                            sh "./docker-compose -f docker-compose.yml up -d"
+                            
+                            sh "./docker-compose -p ${env.APP_NAME} -f docker-compose.yml down || true"
+                            sh "./docker-compose -p ${env.APP_NAME} -f docker-compose.yml up -d"
                         }
                     }
                     
@@ -88,9 +98,17 @@ pipeline {
                     try {
                         mail(
                             to: "${params.EMAIL_TO}",
-                            subject: "Despliegue IDP Exitoso #${env.BUILD_NUMBER}",
+                            subject: "Despliegue Exitoso: ${env.APP_NAME} #${env.BUILD_NUMBER}",
                             mimeType: 'text/html',
-                            body: "<h1>IDP Platform</h1><p>El proyecto <b>${params.REPO_URL}</b> está activo y construido.</p>"
+                            body: """
+                                <h1>Zalgodyne IDP</h1>
+                                <p>El proyecto <b>${env.APP_NAME}</b> se ha desplegado correctamente.</p>
+                                <ul>
+                                    <li><b>Repositorio:</b> ${params.REPO_URL}</li>
+                                    <li><b>Ambiente/Rama:</b> ${params.BRANCH}</li>
+                                    <li><b>Build ID:</b> #${env.BUILD_NUMBER}</li>
+                                </ul>
+                            """
                         )
                     } catch (e) {
                         echo "Notificación simulada (SMTP no configurado)."
