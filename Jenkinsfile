@@ -4,7 +4,7 @@ pipeline {
     parameters {
         string(name: 'REPO_URL', defaultValue: '', description: 'URL del repositorio Cliente')
         string(name: 'BRANCH', defaultValue: 'main', description: 'Rama a desplegar')
-        string(name: 'LANGUAGE', defaultValue: 'java', description: 'Lenguaje (java/node)')
+        string(name: 'LANGUAGE', defaultValue: 'node', description: 'Lenguaje (java/node/angular)')
         string(name: 'EMAIL_TO', defaultValue: '', description: 'Email de notificación')
         
         string(name: 'HOST_PORT', defaultValue: '8085', description: 'Puerto externo del servidor')
