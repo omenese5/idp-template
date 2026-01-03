@@ -107,7 +107,7 @@ pipeline {
                                     mimeType: 'text/html',
                                     body: """
                                         <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0;">
-                                            <h2 style="color: #2da44e;">Zalgodyne IDP - Online 🚀</h2>
+                                            <h2 style="color: #2da44e;">Zalgodyne IDP - Online</h2>
                                             <p>El proyecto <b>${env.APP_NAME}</b> se ha desplegado correctamente.</p>
                                             <ul>
                                                 <li><b>Puerto:</b> ${params.HOST_PORT}</li>
