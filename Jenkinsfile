@@ -125,9 +125,6 @@ pipeline {
                             </div>
                             
                             <br>
-                            <a href="http://localhost:${params.HOST_PORT}" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                                Ver Aplicación (: ${params.HOST_PORT})
-                            </a>
                             <p style="font-size: 12px; color: #888; margin-top: 20px;">Zalgodyne Internal Developer Platform</p>
                         </div>
                     """
