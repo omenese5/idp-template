@@ -14,16 +14,18 @@ pipeline {
     }
 
     stages {
+        // --- VISUAL STAGE 1: SOURCE ---
         stage('1. Preparar Workspace') {
             steps {
                 script {
+                    // ETIQUETA PARA EL FRONTEND
+                    echo "--- [STAGE: SOURCE] ---"
+                    
                     def urlParts = params.REPO_URL.tokenize('/')
                     def repoName = urlParts.last().replace('.git', '').toLowerCase()
                     env.APP_NAME = repoName
                     
-                    echo "--- Resumen del Despliegue ---"
                     echo "App: ${env.APP_NAME}"
-                    
                     cleanWs()
                     dir('app') { git branch: params.BRANCH, url: params.REPO_URL }
                     dir('tooling') { git branch: 'main', url: env.TEMPLATES_REPO }
@@ -31,22 +33,42 @@ pipeline {
             }
         }
 
-        stage('2. Construcción') {
+        // --- VISUAL STAGE 2: BUILD ---
+        stage('2. Preparación (Build)') {
             steps {
                 script {
-                    // Stage 2: Build
+                    // ETIQUETA PARA EL FRONTEND
+                    echo "--- [STAGE: BUILD] ---"
+                    
+                    // Aquí movemos los archivos necesarios antes de dockerizar
+                    echo "Preparando Dockerfile para ${params.LANGUAGE}..."
                     sh "cp tooling/docker/${params.LANGUAGE}/Dockerfile app/Dockerfile"
+                }
+            }
+        }
+
+        // --- VISUAL STAGE 3: DOCKERIZE ---
+        stage('3. Construir Imagen (Dockerize)') {
+            steps {
+                script {
+                    // ETIQUETA PARA EL FRONTEND
+                    echo "--- [STAGE: DOCKERIZE] ---"
+                    
                     dir('app') {
+                        echo "Construyendo imagen Docker..."
                         sh "docker build --network host -t ${env.APP_NAME}:${env.BUILD_NUMBER} ."
                     }
                 }
             }
         }
 
-        stage('3. Despliegue') {
+        // --- VISUAL STAGE 4: DEPLOY (Incluye Email) ---
+        stage('4. Despliegue y Notificación') {
             steps {
                 script {
-                    // Stage 3: Dockerize/Deploy
+                    // ETIQUETA PARA EL FRONTEND
+                    echo "--- [STAGE: DEPLOY] ---"
+                    
                     echo "Desplegando aplicación ${env.APP_NAME} en puerto ${params.HOST_PORT}..."
                     
                     withEnv([
@@ -59,6 +81,7 @@ pipeline {
                         "DB_PASS=donlito123"
                     ]) {
                         dir('tooling/templates') {
+                            // 1. Lógica de Docker Compose
                             sh "curl -SL https://github.com/docker/compose/releases/download/v2.29.1/docker-compose-linux-x86_64 -o docker-compose"
                             sh "chmod +x docker-compose"
 
@@ -72,48 +95,46 @@ pipeline {
                             sh "./docker-compose -p ${env.APP_NAME} -f docker-compose.yml down || true"
                             sh "./docker-compose -p ${env.APP_NAME} -f docker-compose.yml up -d"
                             
-                            // Un pequeño sleep para asegurar que el contenedor arrancó antes de notificar
-                            sh "sleep 5"
+                            sh "sleep 5" // Espera técnica para que levante
+                            
+                            // 2. Lógica de Email (INTERNA EN ESTE STAGE)
+                            // El usuario sigue viendo "Deploy" mientras esto ocurre
+                            echo "--- Enviando Notificación Interna ---"
+                            try {
+                                mail(
+                                    to: "${params.EMAIL_TO}",
+                                    subject: "Despliegue Exitoso: ${env.APP_NAME} v${env.BUILD_NUMBER}",
+                                    mimeType: 'text/html',
+                                    body: """
+                                        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0;">
+                                            <h2 style="color: #2da44e;">Zalgodyne IDP - Online 🚀</h2>
+                                            <p>El proyecto <b>${env.APP_NAME}</b> se ha desplegado correctamente.</p>
+                                            <ul>
+                                                <li><b>Puerto:</b> ${params.HOST_PORT}</li>
+                                                <li><b>Build ID:</b> #${env.BUILD_NUMBER}</li>
+                                            </ul>
+                                        </div>
+                                    """
+                                )
+                                echo "Email enviado correctamente."
+                            } catch (e) {
+                                echo "Advertencia: El despliegue funcionó pero falló el email: ${e.message}"
+                            }
                         }
                     }
                 }
             }
         }
-
-        // --- AQUÍ ESTÁ EL CAMBIO: El email ahora es un Stage oficial ---
-        stage('4. Notificación') {
-            steps {
-                script {
-                    echo "--- Enviando Notificación de Éxito ---"
-                    mail(
-                        to: "${params.EMAIL_TO}",
-                        subject: "Despliegue Exitoso: ${env.APP_NAME} v${env.BUILD_NUMBER}",
-                        mimeType: 'text/html',
-                        body: """
-                            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-                                <h2 style="color: #2da44e;">Zalgodyne IDP - Despliegue Completado</h2>
-                                <p>El proyecto <b>${env.APP_NAME}</b> está online.</p>
-                                <ul>
-                                    <li><b>Build ID:</b> #${env.BUILD_NUMBER}</li>
-                                </ul>
-                            </div>
-                        """
-                    )
-                }
-            }
-        }
     }
 
-    // Mantenemos 'post failure' para avisar SI ALGO FALLA antes de llegar al stage 4
     post {
         failure {
             script {
-                echo "Pipeline Fallido. Enviando alerta..."
                 mail(
                     to: "${params.EMAIL_TO}",
                     subject: "Falló el Despliegue: ${env.APP_NAME}",
                     mimeType: 'text/html',
-                    body: "<p>Hubo un error en el despliegue. Revisa los logs en Jenkins.</p>"
+                    body: "<p>Hubo un error crítico en el pipeline. Revisa Jenkins.</p>"
                 )
             }
         }
